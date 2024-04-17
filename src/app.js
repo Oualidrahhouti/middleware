@@ -7,6 +7,14 @@ let publicUrls = [
     '/url2',
     '/login'
 ];
+
+const { getRegisteredUsers } = require('./inMemoryUserRepository');
+
+const checkCredentials = (email, password) => {
+    const users = getRegisteredUsers();
+    return users.find(user => user.email === email && user.password === password);
+};
+
 const generateRandomToken = () => {
     const tokenLength = 10;
     const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
@@ -44,9 +52,14 @@ app.use(loggerMiddleware,logHeadersMiddleware,myMiddleware);
 
 app.post('/authenticate', (req, res) => {
     const { email, password } = req.body;
-    const token = generateRandomToken();
-    globalToken = token;
-    res.json({ token: token });
+    const user = checkCredentials(email, password);
+
+    if (user) {
+        const token = Math.random().toString(36).substr(2); // Génère une chaîne aléatoire
+        res.json({ success: true, message: "Authentification réussie", token: token });
+    } else {
+        res.status(401).json({ success: false, message: "Identifiants invalides" });
+    }
 });
 
 app.get('/url1', (req, res) => {
