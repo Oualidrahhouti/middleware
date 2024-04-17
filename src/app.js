@@ -7,32 +7,46 @@ let publicUrls = [
     '/url2',
     '/login'
 ];
+const generateRandomToken = () => {
+    const tokenLength = 10;
+    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let token = '';
+    for (let i = 0; i < tokenLength; i++) {
+        token += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return token;
+};
 
 function loggerMiddleware(req, res, next) {
     console.log("Nouvelle requête entrante");
     next(); 
 }
 
-function myMiddleware(req, res, next) {
-    const requestedUrl = req.path;
+let globalToken = null;
 
-    if (publicUrls.includes(requestedUrl)) {
-        next(); 
+const logHeadersMiddleware = (req, res, next) => {
+    console.log("Contenu des en-têtes de la requête :");
+    console.log(req.headers);
+    next();
+};
+
+const authorizationMiddleware = (req, res, next) => {
+    const clientToken = req.headers.authorization;
+
+    if (clientToken === globalToken) {
+        next();
     } else {
-        const authToken = req.headers.authorization;
-        if (authToken && authToken === 'Bearer 42') {
-            next(); 
-        } else {
-            res.status(403).send('Forbidden');
-        }
+        res.status(403).json({ message: "Accès non autorisé" });
     }
-}
+};
 
-app.use(loggerMiddleware,myMiddleware);
+app.use(loggerMiddleware,logHeadersMiddleware,myMiddleware);
 
-app.post('/login', (req, res) => {
-    // Generate and return a unique token (for simplicity, just returning a hardcoded token)
-    res.json({ token: '42' });
+app.post('/authenticate', (req, res) => {
+    const { email, password } = req.body;
+    const token = generateRandomToken();
+    globalToken = token;
+    res.json({ token: token });
 });
 
 app.get('/url1', (req, res) => {
@@ -43,7 +57,7 @@ app.get('/url2', (req, res) => {
     res.send('Hello World!');
 });
 
-app.get('/private/url1', (req, res) => {
+app.get('/private/url1',authorizationMiddleware, (req, res) => {
     res.send('Hello, it is secret');
 });
 
